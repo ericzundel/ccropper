@@ -18,9 +18,10 @@ import cv2
 import numpy as np
 
 MIN_SIZE_PIXELS=500
+DEFAULT_BLUR_RADIUS=50
 DEFAULT_BORDER=20 
-DEFAULT_MIN_RADIUS=100
-DEFAULT_MAX_RADIUS=1000
+DEFAULT_MIN_RADIUS=500
+DEFAULT_MAX_RADIUS=2000
 DEFAULT_INVERT_IMAGE=True # This code expects a black background. You might want to change if you are using a white background.
 DEFAULT_PARAM1=200        # works well with high contrast circles
 DEFAULT_PARAM2=.95        # Works well with nearly perfect circles
@@ -44,7 +45,7 @@ def parse_args():
     """Parse command line arguments"""
     
     parser = argparse.ArgumentParser(
-        prog = 'circcropper',
+        prog = 'ccropper',
         description = 'Finds a circle in the center of an image and crops it with a border');
     parser.add_argument('filename',
                         nargs='+',
@@ -52,9 +53,11 @@ def parse_args():
     parser.add_argument('-outprefix', '-o',
                         nargs=1,
                         help='Set the prefix for the output filename')
-    parser.add_argument('-border', '-b',
+    parser.add_argument('-blur',
+                        default=DEFAULT_BLUR_RADIUS,
+                        help='Blur radius in pixels, overriding default')    
+    parser.add_argument('-border',
                         default=DEFAULT_BORDER,
-                        nargs=1,
                         help='Number of pixels to use for border, overriding default')
     parser.add_argument('-minradius',
                         default=DEFAULT_MIN_RADIUS,
@@ -104,7 +107,7 @@ def crop_image(img, pt):
     
     global args
     
-    border_width = args.border
+    border_width = int(args.border)
 
     a, b, r = pt[0], pt[1], pt[2]
     detected_circle_width = max(2*r + 2*border_width, MIN_SIZE_PIXELS)
@@ -162,16 +165,21 @@ def try_detect_circles(img):
     """
     global args
 
+    #param1_vals = [int(args.param1), 100, 500, 50]
+    param1_vals = [int(args.param1)]
+    #param2_vals = [float(args.param2), 0.8]
+    param2_vals = [float(args.param2)]
+    
     tries = 1
-    for param1_value in (int(args.param1), 100, 500, 50):
-        for param2_value in (float(args.param2), 0.8):
+    for param1_value in param1_vals:
+        for param2_value in param2_vals:
             debug("Trying to detect cirlces with param1=",
                   param1_value, "param2=", param2_value)
                              
             # Apply Hough transform on the blurred image.
-            # The HOUGH_GRADIENT_ALT I found to be more reliable in my images.
+            # The HOUGH_GRADIENT_ALT I found to sometimes be more reliable in my images.
             detected_circles = cv2.HoughCircles(img,
-                                                cv2.HOUGH_GRADIENT_ALT,
+                                                cv2.HOUGH_GRADIENT,
                                                 dp=1,
                                                 minDist=500,
                                                 param1 = param1_value,
@@ -205,24 +213,32 @@ def process_file(filename):
     if (args.debug):
         print("orig_width=", orig_width, " orig_height=", orig_height,
               flush=True)
-    new_width = int(orig_width/2)
-    new_height = int(orig_height/2)
+
+    x1 = x2 = y1 = y2 = img = 0
+    if False:
+        # Crop out the middle of the image, most of the screen is wasted
+        new_width = int(orig_width/2)
+        new_height = int(orig_height/2)
         
-    img = np.zeros((new_height, new_width, 3), np.uint8)
-    # Crop out the middle of the image, most of the screen is wasted
-    x1 = int(new_width/2)
-    x2 = x1 + new_width
-    y1 = int(new_height/2)
-    y2 = y1 + new_height
-    img[0:new_height,0:new_width] = orig_img[y1:y2,x1:x2]
+        img = np.zeros((new_height, new_width, 3), np.uint8)
+        
+        #x1 = int(new_width/2)
+        #x2 = x1 + new_width
+        #y1 = int(new_height/2)
+        #y2 = y1 + new_height
+        #img[0:new_height,0:new_width] = orig_img[y1:y2,x1:x2]
+    else:
+        x2 = orig_width
+        y2 = orig_height
+        img = orig_img
     
     # Convert to grayscale.
     adjusted_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    if (args.debug):
-        debug("After grayscale:")
-        cv2.imshow("After grayscale", adjusted_img)
-        cv2.waitKey(0)
+    #if (args.debug):
+    #    debug("After grayscale:")
+    #    cv2.imshow("After grayscale", adjusted_img)
+    #    cv2.waitKey(0)
 
     if(args.noinvert is False):
         adjusted_img = cv2.bitwise_not(adjusted_img)
@@ -232,7 +248,8 @@ def process_file(filename):
             cv2.waitKey(0)        
         
     # Blur using 3 * 3 kernel.
-    adjusted_img = cv2.blur(adjusted_img, (10, 10))
+    blur_radius = int(args.blur)
+    adjusted_img = cv2.blur(adjusted_img, (blur_radius, blur_radius))
     if (args.debug):
         debug("After blur:")
         cv2.imshow("After blur", adjusted_img)

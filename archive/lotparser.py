@@ -26,7 +26,7 @@ DEFAULT_BRIGHTNESS=100.0  # Beta, Sample suggests 0. value determined experiment
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        prog = 'circcropper',
+        prog = 'lotparser',
         description = 'Finds a circle in the center of an image and crops it with a border');
     parser.add_argument('filename',
                         nargs='+',
