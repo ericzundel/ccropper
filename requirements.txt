@@ -3,6 +3,7 @@ tesseract
 pytesseract
 numpy
 loky
+opencv-python
 #pillow 
 #scipy
 #scikit-learn 

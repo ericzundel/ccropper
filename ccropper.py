@@ -19,31 +19,31 @@ import numpy as np
 
 MIN_SIZE_PIXELS=500
 DEFAULT_BLUR_RADIUS=50
-DEFAULT_BORDER=20 
+DEFAULT_BORDER=20
 DEFAULT_MIN_RADIUS=500
 DEFAULT_MAX_RADIUS=2000
 DEFAULT_INVERT_IMAGE=True # This code expects a black background. You might want to change if you are using a white background.
 DEFAULT_PARAM1=200        # works well with high contrast circles
 DEFAULT_PARAM2=.95        # Works well with nearly perfect circles
-DEFAULT_CONTRAST=1.25     # Alpha,  Sample suggests 1.0. Value determined experiementally with high key BG 
-DEFAULT_BRIGHTNESS=100.0  # Beta, Sample suggests 0. value determined experimentally with kigh key BG 
+DEFAULT_CONTRAST=1.25     # Alpha,  Sample suggests 1.0. Value determined experiementally with high key BG
+DEFAULT_BRIGHTNESS=100.0  # Beta, Sample suggests 0. value determined experimentally with kigh key BG
 
 def debug(*arguments, **kwargs):
     """Conditionally print an debugging message to stderr and flush it."""
-    
+
     global args
-    
+
     if (args.debug):
         print(*arguments, **kwargs, file=sys.stderr, flush=True)
 
 def warn(*arguments, **kwargs):
     """Unconditionally print a warning message to stderr and flush it."""
-    
+
     print(*arguments, **kwargs, file=sys.stderr, flush=True)
-    
+
 def parse_args():
     """Parse command line arguments"""
-    
+
     parser = argparse.ArgumentParser(
         prog = 'ccropper',
         description = 'Finds a circle in the center of an image and crops it with a border');
@@ -55,7 +55,7 @@ def parse_args():
                         help='Set the prefix for the output filename')
     parser.add_argument('-blur',
                         default=DEFAULT_BLUR_RADIUS,
-                        help='Blur radius in pixels, overriding default')    
+                        help='Blur radius in pixels, overriding default')
     parser.add_argument('-border',
                         default=DEFAULT_BORDER,
                         help='Number of pixels to use for border, overriding default')
@@ -64,13 +64,13 @@ def parse_args():
                         help='Smallest radius of circule to find in pixels')
     parser.add_argument('-maxradius',
                         default=DEFAULT_MAX_RADIUS,
-                        help='Largest radius of circule to find in pixels')    
-    parser.add_argument('-param1', 
+                        help='Largest radius of circule to find in pixels')
+    parser.add_argument('-param1',
                         default=DEFAULT_PARAM1,
                         help='Value for param1, overriding default')
-    parser.add_argument('-param2', 
+    parser.add_argument('-param2',
                         default=DEFAULT_PARAM2,
-                        help='value for param2, use 1.0 for perfect circles, less to allow more variance')    
+                        help='value for param2, use 1.0 for perfect circles, less to allow more variance')
     parser.add_argument('-debug', '-d', action='store_true',
                         help='Enable debugging')
     parser.add_argument('-brightness',
@@ -83,13 +83,13 @@ def parse_args():
                         default=False,
                         action='store_true',
                         help="Do not invert image. Defaults to invert for black background")
-    
+
     args = parser.parse_args()
     if (args.debug):
         pp = pprint.PrettyPrinter(indent=4)
         pp.pprint(args)
         print(flush=True)
-        
+
     return args
 
 def crop_image(img, pt):
@@ -97,16 +97,16 @@ def crop_image(img, pt):
 
     img : Image
     The raw input image to crop
-    
+
     pt : tuple(int, int, int)
     (center y coordinate, center x coordinate, radius)
 
     :rtype: Image
     processed image on success, None on failure
     """
-    
+
     global args
-    
+
     border_width = int(args.border)
 
     a, b, r = pt[0], pt[1], pt[2]
@@ -116,19 +116,19 @@ def crop_image(img, pt):
                                                              img.shape[1],
                                                              detected_circle_width,
                                                              image_width))
-          
+
     x1 = a - int(image_width/2)
     y1 = b - int(image_width/2)
     x2 = x1 + image_width
     y2 = y1 + image_width
-    
+
     if (args.debug):
         print("Center is " + str(a) + "," + str(b) + " radius "+str(r))
         print("Image width = ", str(image_width))
         print("Border width = ", str(border_width))
         print("x1=", str(x1), " y1=", str(y1),
               "x2=", str(x2), " y2=", str(y2))
-        
+
     if (r > a or r > b):
         warn("Skipping circle that goes off the page with r=", r,
              " a=", a, " b=", b)
@@ -137,19 +137,19 @@ def crop_image(img, pt):
     if (x2 > img.shape[1] or y2 > img.shape[0]):
         warn("I think we detected the wrong circle. Keep trying.")
         return None
-        
+
     circle_img = np.zeros((image_width, image_width, 3),
                               np.uint8)
     circle_img[0:image_width, 0:image_width] = \
-        img[y1:y2,x1:x2]
-        
+        img[x1:x2,y1:y2]
+
     if (args.debug):
         #cv2.circle(img, (a, b), r, (0, 255, 0), 2)
         #cv2.circle(img, (a, b), 1, (0, 0, 255), 3)
         #cv2.imshow("Detected circle region", img)
         #cv2.imshow("Copied region", circle_img)
         pass
-    
+
     return circle_img
 
 def adjust_brightness(img):
@@ -169,13 +169,13 @@ def try_detect_circles(img):
     param1_vals = [int(args.param1)]
     #param2_vals = [float(args.param2), 0.8]
     param2_vals = [float(args.param2)]
-    
+
     tries = 1
     for param1_value in param1_vals:
         for param2_value in param2_vals:
             debug("Trying to detect cirlces with param1=",
                   param1_value, "param2=", param2_value)
-                             
+
             # Apply Hough transform on the blurred image.
             # The HOUGH_GRADIENT_ALT I found to sometimes be more reliable in my images.
             detected_circles = cv2.HoughCircles(img,
@@ -192,16 +192,16 @@ def try_detect_circles(img):
                 return detected_circles
             # Try another combination
             tries = tries + 1
-    
+
 def process_file(filename):
     """Handle a single file.
 
     Writes out the processed file as a .png using the basename of the input and
     a suffix on success.
     """
-    
+
     global args
-    
+
     # Read image.
     orig_img = cv2.imread(filename, cv2.IMREAD_COLOR)
     if (orig_img is None):
@@ -219,9 +219,9 @@ def process_file(filename):
         # Crop out the middle of the image, most of the screen is wasted
         new_width = int(orig_width/2)
         new_height = int(orig_height/2)
-        
+
         img = np.zeros((new_height, new_width, 3), np.uint8)
-        
+
         #x1 = int(new_width/2)
         #x2 = x1 + new_width
         #y1 = int(new_height/2)
@@ -231,7 +231,7 @@ def process_file(filename):
         x2 = orig_width
         y2 = orig_height
         img = orig_img
-    
+
     # Convert to grayscale.
     adjusted_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -245,8 +245,8 @@ def process_file(filename):
         if (args.debug):
             debug("After invert:")
             cv2.imshow("After invert", adjusted_img)
-            cv2.waitKey(0)        
-        
+            cv2.waitKey(0)
+
     # Blur using 3 * 3 kernel.
     blur_radius = int(args.blur)
     adjusted_img = cv2.blur(adjusted_img, (blur_radius, blur_radius))
@@ -254,24 +254,24 @@ def process_file(filename):
         debug("After blur:")
         cv2.imshow("After blur", adjusted_img)
         cv2.waitKey(0)
-        
+
     #adjusted_img = adjust_brightness(adjusted_img)
     #if (args.debug):
     #    debug("After brightness:")
     #    cv2.imshow("After brightness", adjusted_img)
     #    cv2.waitKey(0)
 
-    detected_circles = try_detect_circles(adjusted_img) 
+    detected_circles = try_detect_circles(adjusted_img)
     if detected_circles is None:
         print("No circles found in ", filename)
         return
-    
+
     # Convert the circle parameters a, b and r to integers.
     detected_circles = np.uint16(np.around(detected_circles))
-    
+
     print("found " + str(len(detected_circles[0])) + " circles")
     if (args.debug):
-        pp = pprint.PrettyPrinter(indent=4)    
+        pp = pprint.PrettyPrinter(indent=4)
         pp.pprint(detected_circles)
 
     for pt in detected_circles[0, :]:
