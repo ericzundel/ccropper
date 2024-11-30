@@ -141,7 +141,7 @@ def crop_image(img, pt):
     circle_img = np.zeros((image_width, image_width, 3),
                               np.uint8)
     circle_img[0:image_width, 0:image_width] = \
-        img[x1:x2,y1:y2]
+            img[y1:y2, x1:x2]
 
     if (args.debug):
         #cv2.circle(img, (a, b), r, (0, 255, 0), 2)
@@ -244,7 +244,7 @@ def process_file(filename):
         adjusted_img = cv2.bitwise_not(adjusted_img)
         if (args.debug):
             debug("After invert:")
-            cv2.imshow("After invert", adjusted_img)
+            cv2.imshow("After invert", cv2.resize(adjusted_img, (int(orig_width / 6), int(orig_height / 6))))
             cv2.waitKey(0)
 
     # Blur using 3 * 3 kernel.
@@ -252,7 +252,7 @@ def process_file(filename):
     adjusted_img = cv2.blur(adjusted_img, (blur_radius, blur_radius))
     if (args.debug):
         debug("After blur:")
-        cv2.imshow("After blur", adjusted_img)
+        cv2.imshow("After blur", cv2.resize(adjusted_img, (int(orig_width / 6), int(orig_height / 6))))
         cv2.waitKey(0)
 
     #adjusted_img = adjust_brightness(adjusted_img)
@@ -275,7 +275,7 @@ def process_file(filename):
         pp.pprint(detected_circles)
 
     for pt in detected_circles[0, :]:
-        circle_img = crop_image(img, pt)
+        circle_img = crop_image(orig_img, pt)
         if (circle_img is None):
             continue
         output_filename = os.path.splitext(filename)[0] + "-cropped.png"
