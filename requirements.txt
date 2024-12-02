@@ -4,6 +4,7 @@ pytesseract
 numpy
 loky
 opencv-python
+pytest
 #pillow 
 #scipy
 #scikit-learn 
